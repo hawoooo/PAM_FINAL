@@ -7,31 +7,26 @@ import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -46,9 +41,17 @@ fun SearchScreen(
     viewModel: FoodViewModel = viewModel()
 ) {
     var query by remember { mutableStateOf("") }
-    val results by viewModel.searchResult.collectAsState()
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    // Fungsi untuk trigger navigasi
+    fun performSearch() {
+        if (query.isNotBlank()) {
+            keyboardController?.hide()
+            navController.navigate(Screen.FoodResult.createRoute(query))
+        }
+    }
 
     // Voice to text
     val voiceLauncher = rememberLauncherForActivityResult(
@@ -60,7 +63,7 @@ fun SearchScreen(
                 data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.get(0)
             if (!spokenText.isNullOrEmpty()) {
                 query = spokenText
-                viewModel.searchByCategory(spokenText)
+                performSearch() // Langsung cari setelah dapat hasil suara
             }
         }
     }
@@ -88,99 +91,39 @@ fun SearchScreen(
         }
     }
 
-    // Fokus Otomatis & Kosongkan hasil awal
+    // Fokus Otomatis
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
-        viewModel.searchByCategory("") // Kosongkan hasil untuk tampilan awal
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
-            .padding(16.dp)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Search Bar
         OutlinedTextField(
             value = query,
-            onValueChange = {
-                query = it
-                viewModel.searchByCategory(it) // Filter Real-time
-            },
+            onValueChange = { query = it },
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(focusRequester),
-            placeholder = { Text("Cari menu (ex: Nasi, Ayam)...") },
+            placeholder = { Text("Ketik nama menu...") },
             leadingIcon = { Icon(Icons.Default.Search, null) },
             trailingIcon = {
                 IconButton(onClick = { launchVoiceAssistance() }) {
                     Icon(Icons.Default.Mic, contentDescription = "Pencarian Suara")
                 }
             },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White
-            )
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { performSearch() })
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-        // --- PERBAIKAN LOGIKA TAMPILAN ---
-        if (query.isEmpty() && results.isEmpty()) {
-            // 1. Tampilan Awal (belum mengetik)
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Mulai cari menu favoritmu...", color = Color.Gray)
-            }
-        } else if (query.isNotEmpty() && results.isEmpty()) {
-            // 2. Tampilan Jika Hasil Tidak Ditemukan
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Menu '$query' tidak ditemukan", color = Color.Gray)
-            }
-        } else {
-            // 3. Tampilan Jika Hasil Ditemukan
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(results) { food ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                // PERBAIKAN NAVIGASI (MENGHINDARI CRASH)
-                                navController.navigate(
-                                    Screen.Detail.createRoute(
-                                        id = food.id,
-                                        name = food.name,
-                                        category = food.category,
-                                        price = food.price,
-                                        rating = food.rating,
-                                        imageUrl = food.imageUrl
-                                    )
-                                )
-                            },
-                        shape = RoundedCornerShape(12.dp),
-                        elevation = CardDefaults.cardElevation(4.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
-                    ) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            AsyncImage(
-                                model = food.imageUrl,
-                                contentDescription = food.name,
-                                modifier = Modifier.size(80.dp).clip(RoundedCornerShape(8.dp)).background(Color.LightGray),
-                                contentScale = ContentScale.Crop
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Text(food.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text(food.category, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Star, null, tint = Color(0xFFFFD700), modifier = Modifier.size(16.dp))
-                                    Text(" ${food.rating}", style = MaterialTheme.typography.bodySmall)
-                                }
-                                Text("Rp${food.price.toInt()}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        Text("Ketik atau gunakan suara untuk mencari menu.", color = Color.Gray)
     }
 }

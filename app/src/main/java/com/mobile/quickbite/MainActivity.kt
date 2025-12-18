@@ -53,7 +53,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding)
                     ) {
 
-                        // 1. MENU / SEARCH (Tab Kiri)
+                        // 1. MENU (Tab Kiri)
                         composable(Screen.Menu.route) {
                             MenuScreen(navController, foodViewModel, cartViewModel)
                         }
@@ -63,32 +63,39 @@ class MainActivity : ComponentActivity() {
                             HistoryScreen(navController, historyViewModel)
                         }
 
-                        // 3. LAYAR PENCARIAN KHUSUS
+                        // --- ALUR PENCARIAN BARU ---
+
+                        // 3. LAYAR UNTUK INPUT PENCARIAN
                         composable(Screen.Search.route) {
                             SearchScreen(navController, foodViewModel)
                         }
 
-                        // --- LAYAR DETAIL FLOW (PERBAIKAN UTAMA DI SINI) ---
+                        // 4. LAYAR UNTUK MENAMPILKAN HASIL
+                        composable(
+                            route = Screen.FoodResult.route,
+                            arguments = listOf(navArgument("query") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val query = backStackEntry.arguments?.getString("query") ?: ""
+                            ResultScreen(navController, query, foodViewModel)
+                        }
 
-                        // Detail Makanan - SEKARANG MENERIMA 6 PARAMETER
+                        // --- ALUR LAINNYA ---
+
+                        // Detail Makanan
                         composable(
                             route = Screen.Detail.route,
                             arguments = listOf(
                                 navArgument("id") { type = NavType.StringType },
                                 navArgument("name") { type = NavType.StringType },
                                 navArgument("category") { type = NavType.StringType },
-                                // TAMBAHAN BARU:
-                                navArgument("price") { type = NavType.FloatType },  // Pakai Float agar aman di URL
-                                navArgument("rating") { type = NavType.FloatType }, // Pakai Float agar aman di URL
+                                navArgument("price") { type = NavType.FloatType },
+                                navArgument("rating") { type = NavType.FloatType },
                                 navArgument("imageUrl") { type = NavType.StringType }
                             )
                         ) { entry ->
-                            // Ambil Data dari Navigasi
                             val id = entry.arguments?.getString("id") ?: ""
                             val name = entry.arguments?.getString("name") ?: ""
                             val category = entry.arguments?.getString("category") ?: ""
-
-                            // Konversi Float (Navigasi) ke Double (Model Data)
                             val price = entry.arguments?.getFloat("price")?.toDouble() ?: 0.0
                             val rating = entry.arguments?.getFloat("rating")?.toDouble() ?: 0.0
                             val imageUrl = entry.arguments?.getString("imageUrl") ?: ""
@@ -99,9 +106,9 @@ class MainActivity : ComponentActivity() {
                                 id = id,
                                 name = name,
                                 category = category,
-                                price = price,       // Kirim ke UI
+                                price = price,
                                 rating = rating,
-                                imageUrl = imageUrl  // Kirim ke UI
+                                imageUrl = imageUrl
                             )
                         }
 
@@ -110,12 +117,12 @@ class MainActivity : ComponentActivity() {
                             CartScreen(navController, cartViewModel)
                         }
 
-                        // Pembayaran (Auto redirect ke History)
+                        // Pembayaran
                         composable(Screen.Payment.route) {
                             PaymentScreen(navController, cartViewModel)
                         }
 
-                        // Tracking (Dari History)
+                        // Tracking
                         composable(Screen.Tracking.route) { backStackEntry ->
                             val orderId = backStackEntry.arguments?.getString("orderId")
                             if (orderId != null) {
