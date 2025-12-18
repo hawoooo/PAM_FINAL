@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "716250450762",
+    "firebase_url": "https://quickbite-pam-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "quickbite-pam",
+    "storage_bucket": "quickbite-pam.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:716250450762:android:b8f855fa0d28e11ba54fb3",
+        "android_client_info": {
+          "package_name": "com.mobbile.quickbite"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD7ck2O8RynDPy1hSkaRteeCx472FQs9b0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:716250450762:android:fec49614fcb703d8a54fb3",
+        "android_client_info": {
+          "package_name": "com.mobile.quickbite"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD7ck2O8RynDPy1hSkaRteeCx472FQs9b0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
