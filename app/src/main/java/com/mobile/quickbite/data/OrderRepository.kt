@@ -1,7 +1,6 @@
 package com.mobile.quickbite.data
 
 // --- LIBRARY FIREBASE
-import android.util.Log
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -10,7 +9,7 @@ import com.google.firebase.database.ValueEventListener
 // --- LIBRARY GOOGLE MAPS ---
 import com.google.android.gms.maps.model.LatLng
 
-// --- LIBRARY RETROFIT (Untuk History List - Syarat Tugas) ---
+// --- LIBRARY RETROFIT ---
 import com.mobile.quickbite.network.RetrofitClient
 
 // --- LIBRARY COROUTINES ---
@@ -24,61 +23,35 @@ class OrderRepository {
 
     // Setup Database Firebase
     private val db by lazy {
-        try { FirebaseDatabase.getInstance().getReference("orders") } catch (e: Exception) { null }
+        try { FirebaseDatabase.getInstance().getReference("orders") } catch (_: Exception) { null } // FIX: e -> _
     }
     private val api = RetrofitClient.instance
 
     // =================================================================
-    // FUNGSI 1: AMBIL HISTORY LIST (MENGGUNAKAN RETROFIT)
+    // FUNGSI 1: AMBIL HISTORY LIST (BERSIH DARI LOGIKA OTOMATIS)
     // =================================================================
-    // Memenuhi Syarat: Retrofit, GSON, List JSON, Threading
     suspend fun getOrderHistory(): List<Order> = withContext(Dispatchers.IO) {
         try {
             // 1. Ambil data mentah dari Firebase
             val responseMap = api.getOrderHistory()
-            val currentTime = System.currentTimeMillis()
 
+            // 2. Konversi Map ke List
             val updatedList = responseMap.map { (key, value) ->
-                var order = value.copy(id = key)
-
-                // --- LOGIKA WAKTU OTOMATIS DISINI ---
-                val timeDiff = currentTime - order.orderTime
-
-                // ATURAN 1: DIKEMAS -> DIANTAR
-                // Cek jika statusnya DIKEMAS (Indo) ATAU PAID (Inggris/Lama)
-                if ((order.status == "DIKEMAS" || order.status == "PAID") && timeDiff > 30000) {
-                    try {
-                        // Kita paksa update ke format BARU (DIANTAR)
-                        api.updateOrderStatus(key, mapOf("status" to "DIANTAR"))
-                        order = order.copy(status = "DIANTAR")
-                    } catch (e: Exception) { Log.e("Repo", "Gagal update Diantar") }
-                }
-
-                // ATURAN 2: DIANTAR -> SELESAI
-                // Cek jika statusnya DIANTAR (Indo) ATAU ON_DELIVERY (Inggris)
-                if ((order.status == "DIANTAR" || order.status == "ON_DELIVERY") && timeDiff > 60000) {
-                    try {
-                        // Kita paksa update ke format BARU (SELESAI)
-                        api.updateOrderStatus(key, mapOf("status" to "SELESAI"))
-                        order = order.copy(status = "SELESAI")
-                    } catch (e: Exception) { Log.e("Repo", "Gagal update Selesai") }
-                }
-                // -------------------------------------
-
-                order
+                value.copy(id = key)
             }
-            // Urutkan dari yang terbaru (descending)
+
+            // 3. Urutkan dari yang terbaru (descending)
             return@withContext updatedList.sortedByDescending { it.orderTime }
 
-        } catch (e: Exception) {
+        } catch (_: Exception) { // FIX: e -> _
             return@withContext emptyList()
         }
     }
 
     // =================================================================
-    // FUNGSI 2: TRACKING LOKASI (MENGGUNAKAN FIREBASE SDK)
+    // FUNGSI 2: TRACKING LOKASI
     // =================================================================
-    // Tetap Real-time agar peta bergerak mulus
+    @Suppress("unused") // FIX: Suppress warning karena fungsi ini belum dipanggil di ViewModel saat ini
     fun trackOrderLocation(orderId: String): Flow<TrackingData> = callbackFlow {
         val database = db
         if (database == null) {
@@ -109,10 +82,10 @@ class OrderRepository {
 
         try {
             database.child(orderId).addValueEventListener(listener)
-        } catch (e: Exception) { close(e) }
+        } catch (e: Exception) { close(e) } // e digunakan di sini untuk close(e), jadi biarkan.
 
         awaitClose {
-            try { database.child(orderId).removeEventListener(listener) } catch (e: Exception) {}
+            try { database.child(orderId).removeEventListener(listener) } catch (_: Exception) {} // FIX: e -> _
         }
     }
 }

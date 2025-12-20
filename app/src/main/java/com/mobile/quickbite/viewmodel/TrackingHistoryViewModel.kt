@@ -30,17 +30,13 @@ class TrackingHistoryViewModel : ViewModel() {
     // State untuk List Riwayat (Dikelompokkan per Tanggal)
     private val _historyState = MutableStateFlow<Map<String, List<Order>>>(emptyMap())
 
-    // LOGIKA FILTERING UTAMA
-    // Menggabungkan data history mentah dengan status filter yang dipilih user
     val filteredHistory = _historyState.combine(_filterStatus) { historyMap, filter ->
         if (filter == null) {
-            // Tab SEMUA: Tampilkan apa adanya
             historyMap
         } else {
-            // Tab SPESIFIK: Filter list di dalam map berdasarkan status
             historyMap.mapValues { (_, orders) ->
                 orders.filter { it.status == filter }
-            }.filterValues { it.isNotEmpty() } // Hapus tanggal yang kosong setelah difilter
+            }.filterValues { it.isNotEmpty() }
         }
     }
 
@@ -54,60 +50,41 @@ class TrackingHistoryViewModel : ViewModel() {
     private val _userLocation = MutableStateFlow<LatLng?>(null)
     val userLocation = _userLocation.asStateFlow()
 
-    private val _etaState = MutableStateFlow("Menghitung...")
+    private val _etaState = MutableStateFlow("Menghitung Estimasi...")
     val etaState = _etaState.asStateFlow()
 
-
     init {
-        // Panggil refresh sekali saat awal (showLoading = true biar user tau lagi loading)
         refreshData(showLoading = true)
-
-        // Mulai Timer Otomatis
         startAutoRefresh()
     }
 
-    // TIMER OTOMATIS ---
     private fun startAutoRefresh() {
         viewModelScope.launch {
-            // Loop selamanya selama halaman ini masih dibuka (isActive)
             while (isActive) {
-                delay(5000) // Tunggu 5 Detik
-
-
+                delay(5000)
                 refreshData(showLoading = false)
             }
         }
     }
 
-    // --- FUNGSI 1: AMBIL DATA RIWAYAT & UPDATE STATUS OTOMATIS ---
-    // Parameter showLoading ditambahkan agar kita bisa mengontrol kapan spinner muncul
     fun refreshData(showLoading: Boolean = true) {
         viewModelScope.launch {
-            // Hanya tampilkan loading jika diminta (misal: saat awal buka atau tarik layar)
             if (showLoading) _isRefreshing.value = true
-
             try {
-
                 val ordersList = repository.getOrderHistory()
-
-                // 2. Kelompokkan berdasarkan Tanggal (Untuk Sticky Header UI)
                 val grouped = ordersList.groupBy { order ->
                     formatDate(order.orderTime)
                 }
-
                 _historyState.value = grouped
-
             } catch (e: Exception) {
                 e.printStackTrace()
                 _historyState.value = emptyMap()
             }
-
-            // Matikan loading jika tadi dinyalakan
             if (showLoading) _isRefreshing.value = false
         }
     }
 
-    // --- FUNGSI 2: TRACKING LOGIC ---
+    // --- FUNGSI TRACKING ---
     fun startTracking(orderId: String) {
         viewModelScope.launch {
             while (isActive) {
@@ -122,12 +99,23 @@ class TrackingHistoryViewModel : ViewModel() {
                             status = order.status
                         )
                         _trackingState.value = newTrackingData
-                        calculateETA(newTrackingData.driverPos, newTrackingData.restoPos)
+
+                        // FIX: Hitung ETA dari Driver ke User Location
+                        val currentUserLoc = _userLocation.value
+                        if (currentUserLoc != null) {
+                            if (order.status == "DIANTAR" || order.status == "ON_DELIVERY") {
+                                calculateETA(newTrackingData.driverPos, currentUserLoc)
+                            } else {
+                                _etaState.value = "Status: ${order.status}"
+                            }
+                        } else {
+                            _etaState.value = "Menunggu lokasi Anda..."
+                        }
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
-                delay(3000) // Update tiap 3 detik agar gerakan driver lebih halus
+                delay(3000)
             }
         }
     }
@@ -136,20 +124,32 @@ class TrackingHistoryViewModel : ViewModel() {
         _userLocation.value = LatLng(lat, lng)
     }
 
-    private fun calculateETA(driver: LatLng, dest: LatLng) {
+    // --- FIX LOGIKA ETA (1 KM = 10 MENIT) ---
+    private fun calculateETA(driver: LatLng, user: LatLng) {
         val results = FloatArray(1)
         android.location.Location.distanceBetween(
             driver.latitude, driver.longitude,
-            dest.latitude, dest.longitude,
+            user.latitude, user.longitude,
             results
         )
         val distanceMeters = results[0]
-        val timeMinutes = (distanceMeters / 400).toInt()
-        _etaState.value = if (timeMinutes <= 0) "Tiba sebentar lagi" else "$timeMinutes menit lagi"
+        val distanceKm = distanceMeters / 1000
+
+        // Rumus: 1 km = 10 menit
+        val timeMinutes = (distanceKm * 10).toInt()
+
+        if (timeMinutes < 1) {
+            _etaState.value = "Driver sudah dekat!"
+        } else {
+            // Menggunakan Locale.getDefault() untuk format angka desimal yang sesuai region pengguna
+            // dan menghilangkan warning "implicitly using default locale"
+            _etaState.value = "Estimasi: $timeMinutes menit (${String.format(Locale.getDefault(), "%.1f", distanceKm)} km)"
+        }
     }
 
     private fun formatDate(timestamp: Long): String {
-        val sdf = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
+        // Menggunakan Locale.forLanguageTag("id-ID") untuk format tanggal Indonesia yang benar
+        val sdf = SimpleDateFormat("dd MMMM yyyy", Locale.forLanguageTag("id-ID"))
         return sdf.format(Date(timestamp))
     }
 
