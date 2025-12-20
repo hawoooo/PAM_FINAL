@@ -33,9 +33,12 @@ fun MenuScreen(
     cartViewModel: CartViewModel
 ) {
     val menuList by foodViewModel.searchResult.collectAsState()
+
+    // 1. PANGGIL STATE LOADING DARI VIEWMODEL
+    val isLoading by foodViewModel.isLoading.collectAsState()
+
     val cartItems by cartViewModel.cartItems.collectAsState()
 
-    // Load Data Otomatis saat dibuka
     LaunchedEffect(Unit) {
         foodViewModel.searchByCategory("")
     }
@@ -45,10 +48,11 @@ fun MenuScreen(
             if (cartItems.isNotEmpty()) {
                 FloatingActionButton(
                     onClick = { navController.navigate(Screen.Cart.route) },
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = Color.White
                 ) {
                     BadgedBox(badge = { Badge { Text("${cartItems.size}") } }) {
-                        Icon(Icons.Default.ShoppingCart, "Cart", tint = Color.White)
+                        Icon(Icons.Default.ShoppingCart, "Cart")
                     }
                 }
             }
@@ -61,7 +65,6 @@ fun MenuScreen(
                 .background(Color.White)
                 .padding(16.dp)
         ) {
-            // Fake Search Bar - Click to Navigate
             Box(modifier = Modifier.clickable { navController.navigate(Screen.Search.route) }) {
                 OutlinedTextField(
                     value = "",
@@ -84,45 +87,66 @@ fun MenuScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // List Menu
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(menuList) { food ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                // NAVIGASI KE DETAIL
-                                navController.navigate(
-                                    Screen.Detail.createRoute(
-                                        id = food.id,
-                                        name = food.name,
-                                        category = food.category,
-                                        price = food.price,      // Kirim Harga
-                                        rating = food.rating,
-                                        imageUrl = food.imageUrl // Kirim URL
+            // 2. LOGIKA LOADING LIST MENU
+            if (isLoading) {
+                // Tampilkan Loading HANYA jika sedang fetch data
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else if (menuList.isEmpty()) {
+                // Tampilkan pesan kosong jika loading selesai TAPI data tidak ada
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Menu belum tersedia / Gagal Load", color = Color.Gray)
+                }
+            } else {
+                // Tampilkan Data jika ada
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(menuList) { food ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    navController.navigate(
+                                        Screen.Detail.createRoute(
+                                            id = food.id,
+                                            name = food.name,
+                                            category = food.category,
+                                            price = food.price,
+                                            rating = food.rating,
+                                            imageUrl = food.imageUrl
+                                        )
                                     )
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            elevation = CardDefaults.cardElevation(4.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White)
+                        ) {
+                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                AsyncImage(
+                                    model = food.imageUrl,
+                                    contentDescription = food.name,
+                                    modifier = Modifier
+                                        .size(80.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color.LightGray),
+                                    contentScale = ContentScale.Crop
                                 )
-                            },
-                        shape = RoundedCornerShape(12.dp),
-                        elevation = CardDefaults.cardElevation(4.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
-                    ) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            AsyncImage(
-                                model = food.imageUrl, // <-- PERBAIKAN DI SINI
-                                contentDescription = food.name,
-                                modifier = Modifier.size(80.dp).clip(RoundedCornerShape(8.dp)).background(Color.LightGray),
-                                contentScale = ContentScale.Crop
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Text(food.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text(food.category, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Star, null, tint = Color(0xFFFFD700), modifier = Modifier.size(16.dp))
-                                    Text(" ${food.rating}", style = MaterialTheme.typography.bodySmall)
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
+                                    Text(food.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Text(food.category, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Star, null, tint = Color(0xFFFFD700), modifier = Modifier.size(16.dp))
+                                        Text(" ${food.rating}", style = MaterialTheme.typography.bodySmall)
+                                    }
+
+                                    Text(
+                                        "Rp ${food.price.toInt()}",
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
-                                Text("Rp ${(food.rating * 10000).toInt()}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

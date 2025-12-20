@@ -11,8 +11,6 @@ import kotlinx.coroutines.launch
 
 class CartViewModel : ViewModel() {
 
-    // --- BAGIAN INI YANG KURANG ---
-    // Kita harus membuat instance Repository agar bisa akses submitOrder
     private val repository = SearchRepository()
     // -----------------------------
 

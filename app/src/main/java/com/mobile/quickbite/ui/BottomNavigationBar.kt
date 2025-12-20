@@ -39,11 +39,9 @@ fun BottomNavigationBar(navController: NavController) {
                             // LOGIKA BARU YANG LEBIH STABIL:
                             // 1. Pop sampai ke Start Destination (Menu) untuk hindari tumpukan
                             popUpTo(navController.graph.findStartDestination().id) {
-                                // saveState = true  <-- HAPUS INI (Bikin bug macet)
                             }
                             // 2. Hindari instance ganda
                             launchSingleTop = true
-                            // restoreState = true <-- HAPUS INI JUGA (Bikin bug macet)
                         }
                     }
                 },

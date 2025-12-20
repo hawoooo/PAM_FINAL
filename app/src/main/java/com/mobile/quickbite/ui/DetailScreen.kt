@@ -76,9 +76,7 @@ fun DetailScreen(
                                 price = price,       // PENTING
                                 rating = rating,
                                 imageUrl = imageUrl, // PENTING
-                                // Koordinat Resto akan diambil ulang di Repo, atau bisa dipass juga
-                                // Untuk keranjang, koordinat belum krusial, yang penting harga & gambar
-                                restoLat = -7.955, // Default dulu biar gak crash
+                                restoLat = -7.955,
                                 restoLng = 112.615
                             )
 

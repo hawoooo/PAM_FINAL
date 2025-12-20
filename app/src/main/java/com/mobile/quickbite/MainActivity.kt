@@ -16,7 +16,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.mobile.quickbite.ui.*
-import com.mobile.quickbite.ui.nav.Screen // Pastikan Import ini benar
+import com.mobile.quickbite.ui.nav.Screen
 import com.mobile.quickbite.ui.theme.QuickBiteTheme
 import com.mobile.quickbite.viewmodel.CartViewModel
 import com.mobile.quickbite.viewmodel.FoodViewModel
@@ -60,10 +60,9 @@ class MainActivity : ComponentActivity() {
 
                         // 2. RIWAYAT (Tab Kanan)
                         composable(Screen.History.route) {
-                            HistoryScreen(navController, historyViewModel)
+                            HistoryScreen(navController, historyViewModel, cartViewModel)
                         }
 
-                        // --- ALUR PENCARIAN BARU ---
 
                         // 3. LAYAR UNTUK INPUT PENCARIAN
                         composable(Screen.Search.route) {
@@ -79,7 +78,6 @@ class MainActivity : ComponentActivity() {
                             ResultScreen(navController, query, foodViewModel)
                         }
 
-                        // --- ALUR LAINNYA ---
 
                         // Detail Makanan
                         composable(

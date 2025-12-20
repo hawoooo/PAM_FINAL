@@ -8,7 +8,7 @@ class SearchRepository {
     // Ambil akses ke Internet (Retrofit)
     private val api = RetrofitClient.instance
 
-    // --- FUNGSI 1: AMBIL DATA MENU (Untuk MenuScreen) ---
+    // --- FUNGSI 1: AMBIL DATA MENU  ---
     // Mengambil data dari node "restaurants" di Firebase
     suspend fun getFoodsFromFirebase(): List<Food> {
         return try {
@@ -32,13 +32,11 @@ class SearchRepository {
             val orderId = "ORD-${System.currentTimeMillis()}"
 
             // 2. Ambil Lokasi Restoran dari makanan pertama di keranjang
-            // (Kita asumsikan beli dari resto yang sama dulu)
             val firstFood = cartItems.first().food
             val restoLat = firstFood.restoLat
             val restoLng = firstFood.restoLng
 
-            // 3. GENERATE POSISI DRIVER (Simulasi)
-            // Driver muncul sedikit di sebelah restoran (+0.002 derajat)
+            // 3. GENERATE POSISI DRIVER
             val driverLat = restoLat + 0.002
             val driverLng = restoLng + 0.002
 
@@ -47,7 +45,7 @@ class SearchRepository {
                 id = orderId,
                 items = cartItems,
                 totalPrice = total,
-                status = "PAID", // Status Lunas
+                status = "DIKEMAS", // Status Lunas
                 orderTime = System.currentTimeMillis(),
 
                 // Masukkan Lokasi

@@ -1,6 +1,7 @@
 package com.mobile.quickbite.data
 
-// --- LIBRARY FIREBASE (Untuk Tracking Real-time) ---
+// --- LIBRARY FIREBASE
+import android.util.Log
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -21,14 +22,11 @@ import kotlinx.coroutines.withContext
 
 class OrderRepository {
 
-    // Setup Database Firebase (Hanya dipakai untuk Tracking)
+    // Setup Database Firebase
     private val db by lazy {
-        try {
-            FirebaseDatabase.getInstance().getReference("orders")
-        } catch (e: Exception) {
-            null
-        }
+        try { FirebaseDatabase.getInstance().getReference("orders") } catch (e: Exception) { null }
     }
+    private val api = RetrofitClient.instance
 
     // =================================================================
     // FUNGSI 1: AMBIL HISTORY LIST (MENGGUNAKAN RETROFIT)
@@ -36,16 +34,43 @@ class OrderRepository {
     // Memenuhi Syarat: Retrofit, GSON, List JSON, Threading
     suspend fun getOrderHistory(): List<Order> = withContext(Dispatchers.IO) {
         try {
-            // 1. Request HTTP GET ke Firebase via Retrofit
-            val responseMap = RetrofitClient.instance.getOrderHistory()
+            // 1. Ambil data mentah dari Firebase
+            val responseMap = api.getOrderHistory()
+            val currentTime = System.currentTimeMillis()
 
-            // 2. Konversi Map JSON ke List<Order>
-            val ordersList = responseMap.map { (key, value) ->
-                value.copy(id = key) // Masukkan Key Firebase sebagai ID
+            val updatedList = responseMap.map { (key, value) ->
+                var order = value.copy(id = key)
+
+                // --- LOGIKA WAKTU OTOMATIS DISINI ---
+                val timeDiff = currentTime - order.orderTime
+
+                // ATURAN 1: DIKEMAS -> DIANTAR
+                // Cek jika statusnya DIKEMAS (Indo) ATAU PAID (Inggris/Lama)
+                if ((order.status == "DIKEMAS" || order.status == "PAID") && timeDiff > 30000) {
+                    try {
+                        // Kita paksa update ke format BARU (DIANTAR)
+                        api.updateOrderStatus(key, mapOf("status" to "DIANTAR"))
+                        order = order.copy(status = "DIANTAR")
+                    } catch (e: Exception) { Log.e("Repo", "Gagal update Diantar") }
+                }
+
+                // ATURAN 2: DIANTAR -> SELESAI
+                // Cek jika statusnya DIANTAR (Indo) ATAU ON_DELIVERY (Inggris)
+                if ((order.status == "DIANTAR" || order.status == "ON_DELIVERY") && timeDiff > 60000) {
+                    try {
+                        // Kita paksa update ke format BARU (SELESAI)
+                        api.updateOrderStatus(key, mapOf("status" to "SELESAI"))
+                        order = order.copy(status = "SELESAI")
+                    } catch (e: Exception) { Log.e("Repo", "Gagal update Selesai") }
+                }
+                // -------------------------------------
+
+                order
             }
-            return@withContext ordersList
+            // Urutkan dari yang terbaru (descending)
+            return@withContext updatedList.sortedByDescending { it.orderTime }
+
         } catch (e: Exception) {
-            // Jika error/offline, kembalikan list kosong (nanti ViewModel load dummy)
             return@withContext emptyList()
         }
     }
@@ -65,8 +90,8 @@ class OrderRepository {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val dLat = snapshot.child("driverLat").value.toString().toDoubleOrNull() ?: 0.0
                 val dLng = snapshot.child("driverLng").value.toString().toDoubleOrNull() ?: 0.0
-                val rLat = snapshot.child("restaurantLat").value.toString().toDoubleOrNull() ?: 0.0
-                val rLng = snapshot.child("restaurantLng").value.toString().toDoubleOrNull() ?: 0.0
+                val rLat = snapshot.child("restoLat").value.toString().toDoubleOrNull() ?: 0.0
+                val rLng = snapshot.child("restoLng").value.toString().toDoubleOrNull() ?: 0.0
                 val status = snapshot.child("status").value.toString()
 
                 trySend(

@@ -4,8 +4,6 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
-    // PENTING: Ganti dengan URL Firebase Realtime Database Anda
-    // Akhiri dengan tanda slash '/'
     private const val BASE_URL = "https://quickbite-pam-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
     val instance: FoodApiService by lazy {
